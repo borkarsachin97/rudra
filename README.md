@@ -18,36 +18,36 @@
 ```bash
 sudo ./rudra -r 0x08000000 0x0400 0x00400000 firmware.bin
 
--r 							: for Read the firmware
-0x08000000					: Starting address of firmware
-0x0400						: Bytes to read per read Cycle
-0x00400000					: Total Capacity of Flash
-firmware.bin				: File to store firmware
+# -r 							: for Read the firmware
+# 0x08000000					: Starting address of firmware
+# 0x0400						: Bytes to read per read Cycle
+# 0x00400000					: Total Capacity of Flash
+# firmware.bin				: File to store firmware
 
 ## Sending the Bootloader
 ![Loading the Bootloder](images/loading_bootloader_1.png "Loading the Bootloder")
 ```bash
 sudo ./rudra -l ./8809_00400000_usb.fp
 
--l							: Load the Loader
-./8809_00400000_usb.fp		: Bootloader  file in .fp format or LOD
+# -l							: Load the Loader
+# ./8809_00400000_usb.fp		: Bootloader  file in .fp format or LOD
 
 ## Sending custome binary file to specified location
 ![Sending binary file](images/sending_bin_1.png "Sending binary file")
 ```bash
 sudo ./rudra -b 0x01c0027c binary.bin
 
--b							: Load the Binary File
-0x01c0027c					: Location to load the binary
-./binary.bin				: RAW Binary File
+# -b							: Load the Binary File
+# 0x01c0027c					: Location to load the binary
+# ./binary.bin				: RAW Binary File
 
 ## Sending custome custome RAW data to specified location
 ![Sending custome bytes](images/sending_bytes_1.png "Sending custome bytes")
 ```bash
 sudo ./rudra -w 0x01c000a0 "000000008002c08100000000000000000000000000000000"
 
--w							: Write the bytes
-"0000**"					: Bytes to send
+# -w							: Write the bytes
+# "0000**"					: Bytes to send
 
 # How to compile RUDRA
 
