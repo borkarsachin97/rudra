@@ -24,6 +24,7 @@ sudo ./rudra -r 0x08000000 0x0400 0x00400000 firmware.bin
 # 0x00400000					: Total Capacity of Flash
 # firmware.bin				: File to store firmware
 
+```
 ## Sending the Bootloader
 ![Loading the Bootloder](images/loading_bootloader_1.png "Loading the Bootloder")
 ```bash
@@ -31,7 +32,7 @@ sudo ./rudra -l ./8809_00400000_usb.fp
 
 # -l							: Load the Loader
 # ./8809_00400000_usb.fp		: Bootloader  file in .fp format or LOD
-
+```
 ## Sending custome binary file to specified location
 ![Sending binary file](images/sending_bin_1.png "Sending binary file")
 ```bash
@@ -40,7 +41,7 @@ sudo ./rudra -b 0x01c0027c binary.bin
 # -b							: Load the Binary File
 # 0x01c0027c					: Location to load the binary
 # ./binary.bin				: RAW Binary File
-
+```
 ## Sending custome custome RAW data to specified location
 ![Sending custome bytes](images/sending_bytes_1.png "Sending custome bytes")
 ```bash
@@ -48,7 +49,7 @@ sudo ./rudra -w 0x01c000a0 "000000008002c08100000000000000000000000000000000"
 
 # -w							: Write the bytes
 # "0000**"					: Bytes to send
-
+```
 # How to compile RUDRA
 
 ## Prerequsite
@@ -58,41 +59,49 @@ We need libusb installed on our system, to install it,
 sudo apt update
 sudo apt install libusb-1.0-0-dev
 sudo apt install libusb-1.0
-
+```
 ## Clone the sources
 ```bash
 git clone https://github.com/borkarsachin97/rudra
 cd rudra
-
+```
 ## Compile
+```bash
 make
-
+```
 ## Run the binary
+```bash
 sudo ./rudra
-
+```
 Read the respective commands carefully
 
 # Where to find respective files and bootloader
-## 8809_00400000_usb.fp			: This file is propritary file, so cant share it
-## This file is bootloader, you can find these files in flashing tools and Miracle Box or CM2/RDA 
-## Installation directory
-## binary.bin					: This file is simple raw binary file, you can read firmware and store it
-## firmware.bin					: This file will automatically generate while reading firmware
-
+```bsh
+8809_00400000_usb.fp			: This file is propritary file, so cant share it
+This file is bootloader, you can find these files in flashing tools and Miracle Box or CM2/RDA 
+Installation directory
+binary.bin					: This file is simple raw binary file, you can read firmware and store it
+firmware.bin					: This file will automatically generate while reading firmware
+```
 # Changes according to USB Devices
-## To change USB Devices vid, pid and other properties
+```bash
+To change USB Devices vid, pid and other properties
 ## File: rudra.c
 ## Function: loadDevProp(USB *dev)
 ## Prop: dev->vid = 0x1e04; dev->pid = 0x0904;
+```
 
-#License
+# License
+```bash
 RUDRA is open-source software, licensed under the GNU General Public. Contributions and suggestions are welcome!
+```
 
 ## Hashtags
+```bash
 # RDA Coolsand 8809 
+```
 
 # About USB Device
-## lsusb
 ```bash
 lsusb -vd 1e04:0904
 Bus 002 Device 010: ID 1e04:0904 Coolsand Technologies Coolsand
@@ -152,4 +161,4 @@ Device Descriptor:
           Usage Type               Data
         wMaxPacketSize     0x0040  1x 64 bytes
         bInterval               1
-
+```
