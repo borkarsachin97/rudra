@@ -1,0 +1,45 @@
+-------------START----------------
+[0]	0xAD 	= Packet start by this signature
+[1-3]	0xXXXX 	= XXXX is size of data that device needs to read in end point; Start from CMD to CRC
+[4]	0xXX	= flowId, crc, 
+----------------------------------
+Massage Body:
+[5]	0xXX	= CMD, 1 byte
+
+CMD:
+0x00	= This is a CPU Event, and can only be sent by CPU
+[6-9]	= 4 Bytes [LE/BE] after CMD, END = CRC
+
+0x02 	= Read a WORD from address
+[6-9]	= 4 Bytes LE address
+[10]	= FrameID, to identify packet to align
+[11]	= Length to be asked? Maybe unknown, END = CRC
+
+0x03	= Read BULK DATA
+[]	= Sometimes CPU returns this as Flow ID; don't be confused with Reading Internal Registers
+[]	= This can be used for reading internal Registers but needs further research, END = CRC
+
+0x04	= Read Internal Register
+[6-9]	= LE Address/Register No Maybe
+[10]	= FrameID, to identify packet to align
+[11]	= Length to be asked? Maybe unknown, END = CRC
+
+0x82	= Write a WORD data to Address
+[6-9]	= Address, where to write the WORD, LE
+[10-13]	= DATA/WORD in LE, END = CRC
+
+0x83	= Write BULK of Data to Address
+[6-9]	= Address, where to write the BULK data, LE
+[10..]	= DATA, END = CRC
+
+0x84	= Write to internal Register
+[6]	= Register No
+[7-10]	= DATA/WORD, END = CRC
+
+------------------------------------
+[LEN-1]	= 0xXX	= CRC
+	= CRC is calculated by XORing FlowID to every value after FlowID, store the result and again XOR it 
+	  with the next byte.
+-------------END--------------------
+
+After sending a read bulk command, here is how you process the data received from the system. You'll get the 0x1030 bytes, with the first 5 bytes being AD1006FF03 needing to be ignored. The last byte is the CRC, which also needs to be ignored. The remaining data needs to be stored.

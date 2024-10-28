@@ -1,0 +1,11 @@
+fileExplained.txt						// Explained What inside each file
+images									// Folder for Demo Images
+Makefile								// Script to compile codes
+pkt_strct.dia							// Dia design of USB packet
+protocol.h								// Structer for USB protocol
+protocol_struct.txt						// Explained the USB Protocol in depth
+README.md								// Readme for Project RUDRA for git
+rudra.c									// main() and have a functions for device firmware
+rudra.h									// For future implementation with GUI
+usbComm.c								// functions for handeling usb communication via libusb
+usbComm.h								// Header for expansion

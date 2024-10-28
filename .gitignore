@@ -1,0 +1,11 @@
+# Ignore all .fp files
+*.fp
+
+# Ignore all .o files
+*.o
+
+# Ignore all .bin files
+*.bin
+
+# Ignore Rudra binary files
+rudra
