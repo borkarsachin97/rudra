@@ -61,7 +61,7 @@ sudo apt install libusb-1.0
 
 ## Clone the sources
 ```bash
-git clone https://github.com/vixxkigoli/rudra
+git clone https://github.com/borkarsachin97/rudra
 cd rudra
 
 ## Compile
