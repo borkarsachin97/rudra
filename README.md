@@ -1,5 +1,5 @@
-#Project RUDRA: A Firmware Manipulation Tool for RDA Feature Phones
-## v 0.1
+#Project RUDRA: A Firmware Dumping and Hacking Tool for RDA Feature Phones and CPUs
+## v 0.2
 ### Author @vixxxkigoli
 
 ## Features of RUDRA
@@ -7,6 +7,7 @@
 - Load a bootloader in device .fp file
 - Write a binary file to specified location
 - Write a raw data to specified location via terminal
+- Test the loader, during test Display LED and Camera Flashlight get triggered
 
 ### Note: RUDRA Can't currently flash the firmware, most of the bootloaders are broken, so author is doing research for further scope
 
@@ -25,10 +26,19 @@ sudo ./rudra -r 0x08000000 0x0400 0x00400000 firmware.bin
 # firmware.bin				: File to store firmware
 
 ```
+## Testing 8809 Loader with Phone
+![Backlight and Flashlight triggered](images/LED_Triggered_1.jpg "Backlight and Flashlight triggered")
+```bash
+sudo ./rudra -t ./loaders/8809_00400000_usb.fp
+
+# -t							: test 8809 Loader with CPU
+# ./8809_00400000_usb.fp		: Bootloader  file in .fp format or LOD
+```
+
 ## Sending the Bootloader
 ![Loading the Bootloder](images/loading_bootloader_1.png "Loading the Bootloder")
 ```bash
-sudo ./rudra -l ./8809_00400000_usb.fp
+sudo ./rudra -l ./loaders/8809_00400000_usb.fp
 
 # -l							: Load the Loader
 # ./8809_00400000_usb.fp		: Bootloader  file in .fp format or LOD
@@ -89,6 +99,7 @@ To change USB Devices vid, pid and other properties
 ## File: rudra.c
 ## Function: loadDevProp(USB *dev)
 ## Prop: dev->vid = 0x1e04; dev->pid = 0x0904;
+## If you are  using tty/USB then add codes for detach kernel drivers
 ```
 
 # License

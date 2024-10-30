@@ -1,5 +1,6 @@
 fileExplained.txt						// Explained What inside each file
-images									// Folder for Demo Images
+/images									// Folder for Demo Images
+/loaders								// Loaders for CPU
 Makefile								// Script to compile codes
 pkt_strct.dia							// Dia design of USB packet
 protocol.h								// Structer for USB protocol

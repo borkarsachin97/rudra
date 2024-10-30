@@ -56,6 +56,7 @@ typedef struct
     
     uint8_t cmd;                      // [5] Command byte
     union 
+    //struct
     {
 		
         struct 
@@ -74,7 +75,7 @@ typedef struct
 
         struct 
         {
-            uint32_t reg_no;        // Address for internal register read
+            uint32_t value;        // Address for internal register read
         } read_internal_reg;         // For CMD 0x04 (Read Internal Register)
 
         struct 
@@ -92,8 +93,8 @@ typedef struct
 
         struct 
         {
-            uint32_t register_no;    // Register number to write
-            uint32_t data;            // Data to write to the register
+            uint8_t unkn1;    // Register number to write
+            uint32_t unkn2;            // Data to write to the register
         } write_internal_reg;        // For CMD 0x84 (Write Internal Register)
     } body;
     
@@ -106,6 +107,7 @@ rdaUsbPkt* initPkt()
 	rdaUsbPkt* pkt = (rdaUsbPkt*)malloc(sizeof(rdaUsbPkt));
 	pkt->start_signature = PACKET_START;
 	pkt->flow_id = DEBUG;
+	
 	return pkt;
 }
 
@@ -176,6 +178,15 @@ uint8_t calCrc(packet* pkt)
 	
 	switch(pkt->snd->cmd)
 	{
+		case CMD_READ_WORD:
+		{
+			crc ^= pkt->snd->cmd;
+			crc = xorCrc32(pkt->snd->body.read_word.address, crc);
+			crc ^= pkt->snd->body.read_word.frame_id;
+			crc = xorCrc16(pkt->snd->body.read_word.ask_size, crc);
+			break;
+		}
+		
 		case CMD_READ_BULK_DATA:
 		{
 			crc ^= pkt->snd->cmd;
@@ -185,11 +196,27 @@ uint8_t calCrc(packet* pkt)
 			break;
 		}
 		
+		case CMD_WRITE_WORD:
+		{
+			crc ^= pkt->snd->cmd;
+			crc = xorCrc32(pkt->snd->body.write_word.address, crc);
+			crc = xorCrc32(pkt->snd->body.write_word.word, crc);
+			break;
+		}
+		
 		case CMD_WRITE_BULK_DATA:
 		{
 			crc ^= pkt->snd->cmd;
 			crc = xorCrc32(pkt->snd->body.write_bulk_data.address, crc);
 			crc = crcData(pkt->snd->body.write_bulk_data.data, pkt->snd->body.write_bulk_data.sizeOfData, crc);
+			break;
+		}
+		
+		case CMD_WRITE_INTERNAL_REG:
+		{
+			crc ^= pkt->snd->cmd;
+			crc = xorCrc32(pkt->snd->body.write_internal_reg.unkn2, crc);
+			crc ^= pkt->snd->body.write_internal_reg.unkn1;
 			break;
 		}
 		
@@ -246,6 +273,21 @@ uint8_t* streamGen(packet* pkt)
 
 	switch(pkt->snd->cmd)
 		{
+			
+			case CMD_READ_WORD:
+			{
+				add_uint8(&ptr, pkt->snd->start_signature);
+				add_uint16(&ptr, pkt->snd->sizeOfStream);
+				add_uint8(&ptr, pkt->snd->flow_id);
+				add_uint8(&ptr, pkt->snd->cmd);
+				add_uint32(&ptr, pkt->snd->body.read_word.address);
+				add_uint8(&ptr, pkt->snd->body.read_word.frame_id);
+				add_uint16(&ptr, pkt->snd->body.read_word.ask_size);
+				add_uint8(&ptr, pkt->snd->crc);
+				pkt->snd->sizeOfPkt = ptr - buffer;
+				break;
+			}
+			
 			case CMD_READ_BULK_DATA:
 			{
 				add_uint8(&ptr, pkt->snd->start_signature);
@@ -255,6 +297,19 @@ uint8_t* streamGen(packet* pkt)
 				add_uint32(&ptr, pkt->snd->body.read_bulk_data.address);
 				add_uint8(&ptr, pkt->snd->body.read_bulk_data.frame_id);
 				add_uint16(&ptr, pkt->snd->body.read_bulk_data.askdSize);
+				add_uint8(&ptr, pkt->snd->crc);
+				pkt->snd->sizeOfPkt = ptr - buffer;
+				break;
+			}
+			
+			case CMD_WRITE_WORD:
+			{
+				add_uint8(&ptr, pkt->snd->start_signature);
+				add_uint16(&ptr, pkt->snd->sizeOfStream);
+				add_uint8(&ptr, pkt->snd->flow_id);
+				add_uint8(&ptr, pkt->snd->cmd);
+				add_uint32(&ptr, pkt->snd->body.write_word.address);
+				add_uint32(&ptr, pkt->snd->body.write_word.word);
 				add_uint8(&ptr, pkt->snd->crc);
 				pkt->snd->sizeOfPkt = ptr - buffer;
 				break;
@@ -270,6 +325,20 @@ uint8_t* streamGen(packet* pkt)
 				addDatainStream(&ptr, pkt->snd->body.write_bulk_data.data, pkt->snd->body.write_bulk_data.sizeOfData);
 				add_uint8(&ptr, pkt->snd->crc);
 				pkt->snd->sizeOfPkt = ptr - buffer;
+				break;
+			}
+			
+			case CMD_WRITE_INTERNAL_REG:
+			{
+				add_uint8(&ptr, pkt->snd->start_signature);
+				add_uint16(&ptr, pkt->snd->sizeOfStream);
+				add_uint8(&ptr, pkt->snd->flow_id);
+				add_uint8(&ptr, pkt->snd->cmd);
+				add_uint32(&ptr, pkt->snd->body.write_internal_reg.unkn2);
+				add_uint8(&ptr, pkt->snd->body.write_internal_reg.unkn1);
+				add_uint8(&ptr, pkt->snd->crc);
+				pkt->snd->sizeOfPkt = ptr - buffer;
+				break;
 			}
 			
 			default:

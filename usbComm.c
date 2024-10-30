@@ -168,7 +168,7 @@ int ctlTransfer(USB *dev, libusbAPI *api)
         printf("Received %d bytes:\n", rdRes);
         for (int i = 0; i < rdRes; i++) 
         {
-            printf("%02x ", dev->data[i]);
+            printf(" %02X |", dev->data[i]);
         }
         printf("\n");
     }
@@ -184,7 +184,15 @@ int readData(USB *dev, libusbAPI *api)
 	
 	if (rdResult == LIBUSB_SUCCESS)
 	{
-        printf("rdResult: %d, dev->read:%d \n", rdResult, dev->read);
+#if DEBUGMODE == 1
+        printf("readData(): rdResult: %d, dev->read:%d \n", rdResult, dev->read);
+		
+		for(int i = 0; i < dev->read; i++)
+		{
+			printf(" %02X |", dev->data[i]);
+		}
+		printf("\n-----------------------------\n");
+#endif    
     }
     else 
     {
@@ -213,12 +221,14 @@ int sendData(USB *dev, libusbAPI *api)
     }
 
     // Close and exit
-    //printf("Send: %d", dev->transferred);
-    //for(int i = 0; i < dev->transferred; ++i)
-    //{
-	//	printf("%02", dev->data[i]);
-	//}
-    //printf("\n");
+#if DEBUGMODE == 1
+    printf("\nsendData(): Send: %d \n", dev->transferred);
+    for(int i = 0; i < dev->transferred; ++i)
+    {
+		printf(" %02X |", dev->data[i]);
+	}
+    printf("\n-----------------------------\n");
+#endif
     //printf("libusb exit");
     return 0;
 }

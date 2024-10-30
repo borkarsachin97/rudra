@@ -1,5 +1,3 @@
-# Ignore all .fp files
-*.fp
 
 # Ignore all .o files
 *.o

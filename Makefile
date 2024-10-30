@@ -1,6 +1,6 @@
 # Define compiler and flags
 CC = gcc
-CFLAGS = -Wall -std=c99 -DDEBUGMODE=0
+CFLAGS = -Wall -std=c99 -DDEBUGMODE=1
 
 # Define target executable
 TARGET = rudra
@@ -28,8 +28,11 @@ $(TARGET): $(OBJ)
 %.o: %.c $(DEPS)
 	$(CC) -c $(CFLAGS) $< -o $@
 
+test: $(TARGET)
+	sudo ./$(TARGET) -t ./8809_00400000_usb.fp
+
 run: $(TARGET)
-	sudo ./$(TARGET) -w 0x01c000a0 "000000008002c08100000000000000000000000000000000"
+	sudo ./$(TARGET)
 
 # Clean up object files and executable
 clean:

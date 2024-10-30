@@ -35,8 +35,8 @@ void loadDevProp(USB *dev)
 	dev->pid = 0x0904;
 	dev->endPointIN = 0x01;
 	dev->endPointOUT = 0x81;
-	dev->transTime = 3000;
-	dev->readTime = 3000;
+	dev->transTime = 5000;
+	dev->readTime = 5000;
 	dev->isDev = false;
 }
 
@@ -99,15 +99,7 @@ int read_firmware(USB* dev, libusbAPI api, packet* pkt, uint32_t addrs, uint16_t
 		
 		dev->data = recvStream;
 		dev->sizeOfData = MAX_STREAM_SIZE;
-		readData(dev, &api);
-//#if DEBUGMODE
-		for(int i = 0; i < dev->read; i++)
-		{
-			printf(" %02X |", recvStream[i]);
-		}
-		printf("\n");
-//#endif
-		
+		readData(dev, &api);		
 		
         uint8_t* binParts = (uint8_t*)malloc(dev->read);
         if (!binParts) 
@@ -156,12 +148,6 @@ void sendBinData(USB* dev, libusbAPI api, packet* pkt, uint32_t address, uint8_t
         calCrc(pkt);
         
 		stream = streamGen(pkt);
-
-        for(int i = 0; i < pkt->snd->sizeOfPkt; i++)
-		{
-			printf(" %02X |", stream[i]);
-		}
-		printf("\n");
 
         dev->sizeOfData = pkt->snd->sizeOfPkt;
 		dev->data = stream;
@@ -261,12 +247,10 @@ int writeLoc(USB* dev, libusbAPI api, packet* pkt, uint32_t addrs, const char *d
 		sscanf(&dta[i], "%2hhx", &data[i / 2]);
 	}
 	
-	/*
-	for(int i = 0; i < length/2; i++)
-	{
-		printf("%02X", data[i]);
-	}
-	*/
+	printf("Sending RAW Data of size: %lu\n", length/2);
+
+	printf("\n");
+	
 	sendBinData(dev, api, pkt, addrs, data, length/2);
 	
     free(data);
@@ -279,7 +263,7 @@ int sendBinaryFile(USB* dev, libusbAPI api, packet* pkt, uint32_t address, const
 	FILE *file = fopen(binFile, "rb");
     if (file == NULL) 
     {
-        perror("Error opening file");
+        printf("Error opening file");
         return 0;
     }
     
@@ -287,7 +271,7 @@ int sendBinaryFile(USB* dev, libusbAPI api, packet* pkt, uint32_t address, const
     fseek(file, 0, SEEK_END);
 
     // Get the current position in the file, which is the file size
-    uint16_t size = ftell(file);
+    size_t size = ftell(file);
 	
 	// Set the pointer again at start
 	fseek(file, 0, SEEK_SET);
@@ -305,6 +289,7 @@ int sendBinaryFile(USB* dev, libusbAPI api, packet* pkt, uint32_t address, const
             printf("Error reading data block.\n");
             free(data);
         }
+    printf("sendBinaryFile: sending binary, size: %08zX", size);
 	sendBinData(dev, api, pkt, address, data, size);
     free(data);
     
@@ -312,16 +297,150 @@ int sendBinaryFile(USB* dev, libusbAPI api, packet* pkt, uint32_t address, const
 	return 0;
 }
 
+uint32_t* readWord(USB* dev, libusbAPI api, packet* pkt, uint32_t addrs)
+{
+	uint32_t* retWord = (uint32_t*)malloc(0x01);
+	uint8_t* stream = (uint8_t*)malloc(0x16);
+	pkt->snd->cmd = CMD_READ_WORD;
+	pkt->snd->body.read_word.address = __builtin_bswap32(addrs);
+	
+	pkt->snd->sizeOfStream = 0x0009;
+	pkt->snd->body.read_word.ask_size = 0x0001;
+	pkt->snd->body.read_word.frame_id = 0x03;
+	
+	calCrc(pkt);
+	stream = streamGen(pkt);
+	
+	dev->sizeOfData = pkt->snd->sizeOfPkt;
+	dev->data = stream;
+	
+	sendData(dev, &api);
+	
+	dev->data = stream;
+	dev->sizeOfData = 0x16;
+	readData(dev, &api);
+	memcpy(retWord, dev->data + HEADER_SKIP_BYTES, 0x04);
+	
+	printf("\nRead WORD: %08X\n------------------", *retWord);
+	free(stream);
+	return retWord;
+}
+
+void writeWord(USB* dev, libusbAPI api, packet* pkt, uint32_t addrs, uint32_t word)
+{
+#if DEBUGMODE == 1
+	printf("\nwriteWord(): \n");
+#endif
+
+	pkt->snd->cmd = CMD_WRITE_WORD;
+	pkt->snd->body.write_word.address = __builtin_bswap32(addrs);
+	pkt->snd->body.write_word.word = __builtin_bswap32(word);
+	pkt->snd->sizeOfStream = 0x000A;
+	calCrc(pkt);
+	uint8_t* stream = (uint8_t*)malloc(0x12);
+	stream = streamGen(pkt);
+	dev->sizeOfData = pkt->snd->sizeOfPkt;
+	dev->data = stream;
+	sendData(dev, &api);
+	free(stream);
+}
+
+void intRegWrite(USB* dev, libusbAPI api, packet* pkt, uint32_t reg, uint8_t value)
+{
+#if DEBUGMODE == 1
+	printf("\nintRegWrite: \n");
+#endif
+
+	pkt->snd->cmd = CMD_WRITE_INTERNAL_REG;
+	pkt->snd->body.write_internal_reg.unkn2 = __builtin_bswap32(reg);
+	pkt->snd->body.write_internal_reg.unkn1 = value;
+	pkt->snd->sizeOfStream = 0x0007;
+	calCrc(pkt);
+	uint8_t* stream = (uint8_t*)malloc(0x12);
+	stream = streamGen(pkt);
+	dev->sizeOfData = pkt->snd->sizeOfPkt;
+	dev->data = stream;
+	sendData(dev, &api);
+	free(stream);
+}
+
+void readUnk(USB* dev, libusbAPI api)
+{
+	uint8_t* stream = (uint8_t*)malloc(MAX_STREAM_SIZE);
+	dev->data = stream;
+	dev->sizeOfData = 0x16;
+	while((readData(dev, &api) != 1 ));
+	free(stream);
+}
+
+/*
+ * This function is to test 8809 Loader
+ * You can change properties if you want but remember
+ * We do have tw ping-pong buffers here 1) 0x81c05954
+ * 2) 0x81c05968 3) 0x81c05980
+ * 
+ * 0x00000000				cmd
+ * 0x00f03f00				flashAddr = 0x003ff000
+ * 0x008000a2				ramAddrs  = 0xa2008000
+ * 0x00000100				size      = 0x00010000 // 00001000
+ * 0x00000000				fcs
+ * 
+ * 
+ * 
+ */
+
+void testLoader8809(USB* dev, libusbAPI api, packet* pkt, const char *loader)
+{
+	readWord(dev, api, pkt, 0xa1a04410);
+	writeWord(dev, api, pkt, 0xa1a25000, 0x00000066);
+	writeWord(dev, api, pkt, 0xa1a25000, 0x00000099);
+	intRegWrite(dev, api, pkt, 0x00000005, 0xEE);
+	readWord(dev, api, pkt, 0x01a24000);
+	readWord(dev, api, pkt, 0x01a000a0);
+	writeWord(dev, api, pkt, 0xa1a25000, 0x00000066);
+	writeWord(dev, api, pkt, 0xa1a25000, 0x00000099);
+	intRegWrite(dev, api, pkt, 0x00000005, 0xFD);
+	writeWord(dev, api, pkt, 0x01a000a0, 0x00200000);
+	readWord(dev, api, pkt, 0x01a000a0);
+	readWord(dev, api, pkt, 0x81c000cc);
+	writeWord(dev, api, pkt, 0x81c000cc, 0x00000006);
+	readUnk(dev, api);
+	sendLoader(dev, api, pkt, loader);
+	writeWord(dev, api, pkt, 0x81c000a0, 0x000000FF);
+	intRegWrite(dev, api, pkt, 0x00000005, 0xFF);
+	readUnk(dev, api);
+	readWord(dev, api, pkt, 0x81c0027c);
+	readWord(dev, api, pkt, 0x81c05b78);
+	readWord(dev, api, pkt, 0x81c05950);
+	readWord(dev, api, pkt, 0x81c0597c);
+	readWord(dev, api, pkt, 0x81c05980);
+	readWord(dev, api, pkt, 0x81c05984);
+	readWord(dev, api, pkt, 0x81c05988);
+	
+	readUnk(dev, api);
+	
+	writeLoc(dev, api, pkt, 0x81c05954, "0400000000000000000000000000000000000000");
+	
+	
+	readUnk(dev, api);
+	printf("\nreadfirm\n");
+	readUnk(dev, api);
+}
 
 
 int main(int argc, char *argv[])
 {
+	
+	
 	USB dev;
 	libusbAPI api;
 	loadDevProp(&dev);
 	
+	packet* pkt = initSnR();
+	
+	
 	if (argc < 2) {
-        printf("RUDRA - RDA Firmware Tool v0.1 - Open Source Software\n");
+        printf("\n\nRUDRA - RDA Firmware Tool v0.2 - Open Source Software\n");
 		printf("Author: @vixxkigoli\n");
 		printf("This software is open source and intended for educational purposes.\n\n");
 		printf("Usage:\n");
@@ -329,27 +448,19 @@ int main(int argc, char *argv[])
 		printf("  -r <start_addr> <read_bytes_per_cycle> <total_capacity> <output_file> : Read firmware\n");
 		printf("  -b <location> <binary_file> : Send binary file to specified memory location\n");
 		printf("  -w <location> <data> : Write data to specified memory location\n");
+		printf("  -t <loader_file.fp> : Test 8809 CPU with Loader\n");
 		printf("\nExample Commands:\n");
 		printf("  sudo ./rudra -l ./8809_00400000_usb.fp\n");
 		printf("  sudo ./rudra -r 0x08000000 0x0400 0x00400000 firmware.bin\n");
 		printf("  sudo ./rudra -b 0x01c0027c binary.bin\n");
-		printf("  sudo ./rudra -w 0x01c000a0 \"000000008002c08100000000000000000000000000000000\"\n\n");
+		printf("  sudo ./rudra -w 0x01c000a0 \"000000008002c08100000000000000000000000000000000\"\n");
+		printf("  sudo ./rudra -t ./8809_00400000_usb.fp \n");
         return 1;
     }
 
 	
 	setupLibUsbApi(&api, &dev);
 	
-	packet* pkt = initSnR();
-	
-	//writeLoc(&dev, api, pkt, 0x01c000a0, "000000008002c08100000000000000000000000000000000");
-	//sendBinaryFile(&dev, api, pkt, 0x01c0027c, "binary.bin");
-	//sendLoader(&dev, api, pkt, "8809_00400000_usb.fp");
-	//read_firmware(&dev, api, pkt, 0x08000000, 0x0400, 0x00400000, "firmware.bin");
-	//read_firmware(&dev, api, pkt, 0x01A03000, 0x0400, 0x00001000, "gpio.bin");
-	//sendBinaryFile(&dev, api, pkt, 0x01c0027c, "newgp.bin");
-	//writeLoc(&dev, api, pkt, 0x81c05968, "0000000000f03f00008000a20000010000000000");
-	//writeLoc(&dev, api, pkt, 0x81c05954, "0400000000000000000000000000000000000000");	
 	
 	if (strcmp(argv[1], "-l") == 0 && argc == 3) {
         sendLoader(&dev, api, pkt, argv[2]);
@@ -368,12 +479,14 @@ int main(int argc, char *argv[])
         unsigned long location = strtoul(argv[2], NULL, 16);
         writeLoc(&dev, api, pkt, location, argv[3]);
     } 
+    else if (strcmp(argv[1], "-t") == 0 && argc == 3) {
+        testLoader8809(&dev, api, pkt, argv[2]);
+    } 
     else 
     {
         printf("Invalid usage. Please follow the correct syntax.\n");
         return 1;
     }
-
 	
 	libusb_close(api.handle);
     libusb_exit(api.ctx);
