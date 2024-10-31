@@ -1,4 +1,4 @@
-#Project RUDRA: A Firmware Dumping and Hacking Tool for RDA Feature Phones and CPUs
+# Project RUDRA: A Firmware Dumping and Hacking Tool for RDA Feature Phones and CPUs
 ## v 0.2
 ### Author @vixxxkigoli
 
