@@ -196,7 +196,7 @@ int readData(USB *dev, libusbAPI *api)
     }
     else 
     {
-        printf("Failed to read data: %d and dev->read:%d", rdResult, dev->read);
+        //printf("Failed to read data: %d and dev->read:%d", rdResult, dev->read);
         return 1;
     }
 	

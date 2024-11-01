@@ -1,6 +1,6 @@
 # Define compiler and flags
 CC = gcc
-CFLAGS = -Wall -std=c99 -DDEBUGMODE=1
+CFLAGS = -Wall -std=c99 -DDEBUGMODE=0
 
 # Define target executable
 TARGET = rudra

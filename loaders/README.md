@@ -1,86 +1,101 @@
-# Loader Files for RDA CPUS and Chips
+# Loader Files for RDA CPUs and Chips
 
-## How to Use them ?
+## How to Use
 
-This File need to be flashed/loaded into RAM
-Then they gets executed by CPU and they 
-creates "3" Ping-Pong Buffer
-1 - 0x81c05954
-2 - 0x81c05968
-3 - 0x81c0597c		// Arround Here maybe
-These buffers can execute commands
+1. **Load the Loader File into RAM**:  
+   This file is loaded into RAM and executed by the CPU, creating two "Ping-Pong" buffers (in this case, located at `0x81c05954` and `0x81c05968`). These buffers allow the execution of commands.
 
-These Buffers needs to be tweaked
+2. **Ping-Pong Buffers for Command Execution**:  
+   The buffers need to be configured as follows to execute specific commands effectively.
 
-This Loader can do following things:
-- Can erase a SPI Memory / flash
-- Can Reprogramm the flash
-- Can test hardware
-- Might be, give gdb interface
+### Loader Capabilities
+The loader supports:
+- Erasing SPI memory/flash
+- Flash reprogramming
+- Hardware testing
+- Possible debugging (gdb interface)
+
+---
 
 # About Ping-Pong Buffer
-In my case RDA/Coolsand 8809 CPU
-File:		8809_00400000.fp
-I have Loaded the file, file itself contains RAM Location (0x01c0027c)
-Before Loading the Loader, some internal register need to be tweaked
-for More Info, Read rudra.c, testLoader8809() function,
-Now program gets executed, it creates 3 Ping-Pong Buffers
-The buffer accept commands and data,
-Remember: First data needs to be placed and then command needs to be send
+For RDA/Coolsand 8809 CPUs:
+- **File**: `8809_00400000.fp`
+- **RAM Location**: `0x01c0027c` (contained within the file)
 
-```bash
-# Warning: Please don't play with buffer, specially
-  with 0x0000001 & 0x00000002 Commands, I am not able 
-  to flash/reprogram the flash currently
-  Untill and unless we dont find solution to write to flash
-  Please do test the hardware, dump the binaries/memory
-  tweak GPIO and Internal Regs, dont try to erase and 
-  program the flash
-  
-# Example of buffer commands
-1) 0000000000f03f00008000a20000010000000000
- * 0x00000000				cmd
- * 0x00f03f00				flashAddr = 0x003ff000
- * 0x008000a2				ramAddrs  = 0xa2008000
- * 0x00000100				size      = 0x00010000 // 00001000
- * 0x00000000				fcs
- 
-2) 0400000000000000000000000000000000000000
+To execute the loader properly:
+1. **Pre-Load Tweaks**: Certain internal registers need adjustments (see `rudra.c`, `preLoaderFunc()`).
+2. **Buffer Command Structure**: Each buffer is 20 bytes (5 words) representing:
+   - **Command**: The operation to perform
+   - **Flash Sector Address**: Sector of flash memory
+   - **RAM Address**: RAM address for flash programming
+   - **Size**: Size of the sector
+   - **fcs**: Checksum (not typically needed)
 
-	FPC_NONE                                    = 0x00000000,
-    FPC_PROGRAM                                 = 0x00000001,
-    FPC_ERASE_SECTOR                            = 0x00000002,
-    FPC_ERASE_CHIP                              = 0x00000003,
-    FPC_END                                     = 0x00000004,
-    FPC_CHECK_FCS                               = 0x00000005,
-    FPC_GET_FINALIZE_INFO                       = 0x00000006,
-    FPC_RESTART                                 = 0x00000007,
-    FPC_DONE                                    = 0xFFFFFF9C,
-    FPC_ERROR                                   = 0xFFFFFF9D,
-    FPC_FCS_ERROR                               = 0xFFFFFF9E,
-    FPC_FLASH_NOT_AT_FF                         = 0xFFFFFF9F
-    Source: flash_prog_map.h
+**Note**: Data is in little-endian format (source: `progBuffer.h`).
+
+### Flash Programming Steps
+To program the flash:
+1. **Load data** into the first buffer (sector and size).
+2. **Send the erase command** (e.g., `0x00000002`) to the first buffer.
+3. **Load the second buffer** with relevant data (sector, size, RAM address where data is stored).
+4. **Send data to RAM** for each 64KB part.
+5. **Send the program command** (`0x00000001`) to the second buffer.
+6. **Repeat steps 1-5** until the firmware is completely flashed.
+
+**Status Notifications**: After command execution, the loader sends USB events:
+- `F0`: First buffer completed, ready for a new command.
+- `F1`: Second buffer completed, ready for the next task.
+
+---
+
+# Buffer Data Example
+Below is sample data sent by Rudra during flash/erase:
+
+```plaintext
+0000000000000000000000a00000010000000000
+----------
+0000000000000100000000a00000010000000000
+----------
+...and so on.
 ```
+Explanation `e.g., 0000000000000100000000a00000010000000000`:
 
-# Understanding the loader commands
-## Loader also send back the data, via usb
-## Here is the list of the codes
-```bash
-- EVENT_FLASH_PROG_READY                   (0XF0)
-- EVENT_FLASH_PROG_ERROR                   (0XE0)
-- EVENT_FLASH_PROG_UNKNOWN                 (0XD0)
-- EVENT_FLASH_PROG_MEM_RESET               (0XC0)
-- EVENT_FLASH_PROG_MEM_ERROR               (0XCE)
-- FPC_PROTOCOL_MAJOR                       (0XFA01)
-- FPC_PROTOCOL_MINOR                       (0XFB04)
+**Command: Empty**; will be filled later
+**Sector Address**: `0x00000001`
+**RAM Location**: `0xa0000000` (where firmware is stored, 64KB per sector)
+**Size**: `0x00010000` (sector/data size in RAM)
+**Checksum**: `0x00000000` (leave empty)
+
+# Commands
+```plaintext
+    NONE                   = 0x00000000
+    PROG                   = 0x00000001
+    ERASE_SECT             = 0x00000002
+    ERASE_CHIP             = 0x00000003
+    END                    = 0x00000004
+    CHECK_CS               = 0x00000005
+    GET_FINALIZE_INF       = 0x00000006
+    RESTART                = 0x00000007
+    DONE                   = 0xFFFFFF9C
+    ERROR                  = 0xFFFFFF9D
+    FCS_ERROR              = 0xFFFFFF9E
+    FLASH_NOT_AT_FF        = 0xFFFFFF9F
 ```
+# Event Codes from the Loader
+## The loader also returns status codes over USB:
 
-# Where are we ? What should we do in future ?
-- We are at position, where we can load the loader
-- Can Erase Memory
-- Can Reprogram it (Currently under Research/ Partially Working)
-
-# We Need
-- Custome firmware for these CPUs
-- More codes and Contributors/Engineers
-- Buy me a cofee so I would able to work on this project ;-)
+```plaintext
+- EVENT_FLASH_PROG_READY           = 0xF0
+- EVENT_FLASH_PROG_ERROR           = 0xE0
+- EVENT_FLASH_PROG_UNKNOWN         = 0xD0
+- EVENT_FLASH_PROG_MEM_RESET       = 0xC0
+- EVENT_FLASH_PROG_MEM_ERROR       = 0xCE
+- FPC_PROTOCOL_MAJOR               = 0xFA01
+- FPC_PROTOCOL_MINOR               = 0xFB04
+```
+# Current Progress and Next Steps
+- We have successfully loaded the loader, erased memory, and reprogrammed it.
+# Future needs:
+- Custom firmware development for these CPUs.
+- More contributors and engineers for further development.
+- Support for continued development (consider supporting with a coffee 😉).

@@ -10,3 +10,4 @@ rudra.c									// main() and have a functions for device firmware
 rudra.h									// For future implementation with GUI
 usbComm.c								// functions for handeling usb communication via libusb
 usbComm.h								// Header for expansion
+progBuffer.h							// Buffer properties and generation

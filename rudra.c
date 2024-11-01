@@ -27,6 +27,7 @@
 #include "usbComm.h"
 #include <unistd.h> // for sleep()
 #include <string.h> // for memcpy
+#include "progBuffer.h"
 
 
 void loadDevProp(USB *dev)
@@ -35,8 +36,8 @@ void loadDevProp(USB *dev)
 	dev->pid = 0x0904;
 	dev->endPointIN = 0x01;
 	dev->endPointOUT = 0x81;
-	dev->transTime = 5000;
-	dev->readTime = 5000;
+	dev->transTime = 2000;
+	dev->readTime = 2000;
 	dev->isDev = false;
 }
 
@@ -85,13 +86,13 @@ int read_firmware(USB* dev, libusbAPI api, packet* pkt, uint32_t addrs, uint16_t
 		calCrc(pkt);
 		stream = streamGen(pkt);
 		
-
+#if DEBUGMODE == 1
 		for(int i = 0; i < pkt->snd->sizeOfPkt; i++)
 		{
 			printf(" %02X |", stream[i]);
 		}
 		printf("\n");
-
+#endif
 		dev->sizeOfData = pkt->snd->sizeOfPkt;
 		dev->data = stream;
 		
@@ -368,28 +369,21 @@ void readUnk(USB* dev, libusbAPI api)
 {
 	uint8_t* stream = (uint8_t*)malloc(MAX_STREAM_SIZE);
 	dev->data = stream;
-	dev->sizeOfData = 0x16;
-	while((readData(dev, &api) != 1 ));
+	dev->sizeOfData = MAX_STREAM_SIZE;
+	while((readData(dev, &api) != 1 ))
+	{
+		printf("\nUnknown Read:");
+		for(int i = 5; i < dev->read - 1; i++)
+		{
+			printf("%02X", stream[i]);
+		}
+		printf("\n");
+	}
+	
 	free(stream);
 }
 
-/*
- * This function is to test 8809 Loader
- * You can change properties if you want but remember
- * We do have tw ping-pong buffers here 1) 0x81c05954
- * 2) 0x81c05968 3) 0x81c05980
- * 
- * 0x00000000				cmd
- * 0x00f03f00				flashAddr = 0x003ff000
- * 0x008000a2				ramAddrs  = 0xa2008000
- * 0x00000100				size      = 0x00010000 // 00001000
- * 0x00000000				fcs
- * 
- * 
- * 
- */
-
-void testLoader8809(USB* dev, libusbAPI api, packet* pkt, const char *loader)
+int preLoaderFunc(USB* dev, libusbAPI api, packet* pkt)
 {
 	readWord(dev, api, pkt, 0xa1a04410);
 	writeWord(dev, api, pkt, 0xa1a25000, 0x00000066);
@@ -405,7 +399,11 @@ void testLoader8809(USB* dev, libusbAPI api, packet* pkt, const char *loader)
 	readWord(dev, api, pkt, 0x81c000cc);
 	writeWord(dev, api, pkt, 0x81c000cc, 0x00000006);
 	readUnk(dev, api);
-	sendLoader(dev, api, pkt, loader);
+	return 0;
+}
+
+int getPropVia_Loader(USB* dev, libusbAPI api, packet* pkt)
+{
 	writeWord(dev, api, pkt, 0x81c000a0, 0x000000FF);
 	intRegWrite(dev, api, pkt, 0x00000005, 0xFF);
 	readUnk(dev, api);
@@ -416,15 +414,101 @@ void testLoader8809(USB* dev, libusbAPI api, packet* pkt, const char *loader)
 	readWord(dev, api, pkt, 0x81c05980);
 	readWord(dev, api, pkt, 0x81c05984);
 	readWord(dev, api, pkt, 0x81c05988);
-	
 	readUnk(dev, api);
+	return 0;
+}
+
+
+/*
+ * This function is to flash the firmware
+ * You can change properties if you want but remember
+ * We do have two ping-pong buffers here 
+ * 1) 0x81c05954
+ * 2) 0x81c05968
+ * Example:
+ * 0x00000000				cmd
+ * 0x00f03f00				flashAddr = 0x003ff000
+ * 0x008000a2				ramAddrs  = 0xa2008000
+ * 0x00000100				size      = 0x00010000 // 00001000
+ * 0x00000000				fcs
+ */
+int eraseAndflash_firm(USB* dev, libusbAPI api, packet* pkt, const char *firmware_flName)
+{
+	command cmd;
+	cmd.cmd = 0x00000000;
+	cmd.ramAddr = 0xa0000000;
+	cmd.size = 0x00010000;
+	cmd.fcs = 0x00000000;
+	FILE *file = fopen(firmware_flName, "rb"); // firmware file
+    if (file == NULL) 
+    {
+        printf("Error opening file");
+        return -1;
+    }
+    // Move file pointer to the end of the file
+    fseek(file, 0, SEEK_END);
+
+    // Get the current position in the file, which is the file size
+    size_t size = ftell(file);
 	
-	writeLoc(dev, api, pkt, 0x81c05954, "0400000000000000000000000000000000000000");
-	
-	
+	// Set the pointer again at start
+	fseek(file, 0, SEEK_SET);
+	// 
+	for(cmd.flashAddr = 0x00000000; ftell(file) < size; cmd.flashAddr += 0x00010000)
+	{
+		uint8_t* stream;
+		stream = blStreamGen(&cmd);
+		sendBinData(dev, api, pkt, 0x81c05954, stream, cmd.bufferStrmSize);
+		writeWord(dev, api, pkt, 0x81c05954, 0x00000002);
+		sleep(5);
+		readUnk(dev, api);
+		
+		size_t dtaSize = ( size - ftell(file) > MAX_CACHE) ? MAX_CACHE : size - ftell(file);
+		uint8_t *data = malloc(dtaSize);
+			if (data == NULL) 
+			{
+				perror("Memory allocation failed");
+				fclose(file);
+				return -1;
+			}
+
+			if (fread(data, 1, dtaSize, file) != dtaSize) 
+			{
+				printf("Error reading data block.\n");
+				free(data);
+			}
+			
+			//for(uint32_t i = 0; i < dtaSize; i++)
+			//{
+			//	printf("%02X", data[i]);
+			//}
+	sendBinData(dev, api, pkt, 0xa0000000, data, dtaSize);
+	sendBinData(dev, api, pkt, 0x81c05968, stream, cmd.bufferStrmSize);
+	writeWord(dev, api, pkt, 0x81c05968, 0x00000001);
+	sleep(5);
 	readUnk(dev, api);
-	printf("\nreadfirm\n");
-	readUnk(dev, api);
+    free(stream);
+    free(data);
+	}
+	fclose(file);
+	return 0;
+}
+
+void loader_firm_flasher(USB* dev, libusbAPI api, packet* pkt, const char *loader, const char *firmware_flName)
+{
+	
+	preLoaderFunc(dev, api, pkt);
+	sendLoader(dev, api, pkt, loader);
+	getPropVia_Loader(dev, api, pkt);
+	eraseAndflash_firm(dev, api, pkt, firmware_flName);
+}
+
+void test_8809Loader(USB* dev, libusbAPI api, packet* pkt, const char *loader)
+{
+	preLoaderFunc(dev, api, pkt);
+	sendLoader(dev, api, pkt, loader);
+	getPropVia_Loader(dev, api, pkt);
+	writeWord(dev, api, pkt, 0x81c05954, 0x00000004);
 }
 
 
@@ -437,10 +521,9 @@ int main(int argc, char *argv[])
 	loadDevProp(&dev);
 	
 	packet* pkt = initSnR();
-	
-	
+
 	if (argc < 2) {
-        printf("\n\nRUDRA - RDA Firmware Tool v0.2 - Open Source Software\n");
+        printf("\n\nRUDRA - RDA Firmware Dumping/Flashing Tool v0.3 - Open Source Software\n");
 		printf("Author: @vixxkigoli\n");
 		printf("This software is open source and intended for educational purposes.\n\n");
 		printf("Usage:\n");
@@ -448,18 +531,20 @@ int main(int argc, char *argv[])
 		printf("  -r <start_addr> <read_bytes_per_cycle> <total_capacity> <output_file> : Read firmware\n");
 		printf("  -b <location> <binary_file> : Send binary file to specified memory location\n");
 		printf("  -w <location> <data> : Write data to specified memory location\n");
-		printf("  -t <loader_file.fp> : Test 8809 CPU with Loader\n");
+		printf("  -f <loader_file.fp> <firmware_file> : Flash the firmware to device\n");
+		printf("  -t <loader_file.fp> : Flash the firmware to device\n");
 		printf("\nExample Commands:\n");
 		printf("  sudo ./rudra -l ./8809_00400000_usb.fp\n");
 		printf("  sudo ./rudra -r 0x08000000 0x0400 0x00400000 firmware.bin\n");
 		printf("  sudo ./rudra -b 0x01c0027c binary.bin\n");
 		printf("  sudo ./rudra -w 0x01c000a0 \"000000008002c08100000000000000000000000000000000\"\n");
+		printf("  sudo ./rudra -f ./8809_00400000_usb.fp ./firmware.bin \n");
 		printf("  sudo ./rudra -t ./8809_00400000_usb.fp \n");
         return 1;
     }
 
-	
 	setupLibUsbApi(&api, &dev);
+	
 	
 	
 	if (strcmp(argv[1], "-l") == 0 && argc == 3) {
@@ -479,15 +564,18 @@ int main(int argc, char *argv[])
         unsigned long location = strtoul(argv[2], NULL, 16);
         writeLoc(&dev, api, pkt, location, argv[3]);
     } 
+    else if (strcmp(argv[1], "-f") == 0 && argc == 4) {
+        loader_firm_flasher(&dev, api, pkt, argv[2], argv[3]);
+    }
     else if (strcmp(argv[1], "-t") == 0 && argc == 3) {
-        testLoader8809(&dev, api, pkt, argv[2]);
-    } 
+        test_8809Loader(&dev, api, pkt, argv[2]);
+    }
     else 
     {
         printf("Invalid usage. Please follow the correct syntax.\n");
         return 1;
     }
-	
+     
 	libusb_close(api.handle);
     libusb_exit(api.ctx);
     

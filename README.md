@@ -1,31 +1,44 @@
-# Project RUDRA: A Firmware Dumping and Hacking Tool for RDA Feature Phones and CPUs
-## v 0.2
-### Author @vixxxkigoli
+# Project RUDRA: A Firmware Flashing/Dumping Tool for RDA Feature Phones and CPUs
+**Version:** 0.3  
+**Author:** @vixxxkigoli
 
 ## Features of RUDRA
-- Dump the firmware from device
-- Load a bootloader in device .fp file
-- Write a binary file to specified location
-- Write a raw data to specified location via terminal
-- Test the loader, during test Display LED and Camera Flashlight get triggered
+- Dump firmware from device
+- Flash the firmware to device
+- Load a bootloader in `.fp` format
+- Write a binary file to a specified location
+- Write raw data to a specified location via terminal
+- Test the loader: During tests, LED and Camera Flashlight are triggered
 
-### Note: RUDRA Can't currently flash the firmware, most of the bootloaders are broken, so author is doing research for further scope
+## Screenshots of RUDRA
 
-# Sceenshot of RUDRA
-
-## Dumping the firmware from device
+### Dumping Firmware from Device
 ![RUDRA Dumping the firmware](images/dumping_firmware_1.png "RUDRA Dumping the firmware")
 
 ```bash
 sudo ./rudra -r 0x08000000 0x0400 0x00400000 firmware.bin
 
-# -r 							: for Read the firmware
-# 0x08000000					: Starting address of firmware
-# 0x0400						: Bytes to read per read Cycle
-# 0x00400000					: Total Capacity of Flash
-# firmware.bin				: File to store firmware
-
+# -r                : Command to read firmware
+# 0x08000000        : Starting address of firmware
+# 0x0400            : Bytes to read per cycle
+# 0x00400000        : Total flash capacity (4MB in this example)
+# firmware.bin      : File to store firmware
 ```
+
+## Flashing/Burn the firmware to device
+## [How Flashing Work ?](https://github.com/borkarsachin97/rudra/tree/master/loaders)
+![Flashing](images/Flashing_1.png "Flashing")
+```bash
+sudo ./rudra -f ./loaders/8809_00400000_usb.fp ./firmware.bin
+# -f							: Flashing command
+# ./8809_00400000_usb.fp		: Bootloader  file in .fp format or LOD
+# ./firmware.bin				: Firmware File to Flash
+# Note: Do not write wrong firmware, or try to write firmware alike devices
+# 		these devices do not allow in "Download Mode" once they executed
+#		codes, you'l not able get the USB interface and worse the wrong
+# 		firmware will make your device broke, untill you have UART/Jtag
+```
+
 ## Testing 8809 Loader with Phone
 ![Backlight and Flashlight triggered](images/LED_Triggered_1.jpg "Backlight and Flashlight triggered")
 ```bash
@@ -60,6 +73,24 @@ sudo ./rudra -w 0x01c000a0 "000000008002c08100000000000000000000000000000000"
 # -w							: Write the bytes
 # "0000**"					: Bytes to send
 ```
+
+# Changelog
+```bash
+**************01/11/2024************
+# Upgrade: v0.3
+- Added Firmware Flashing Support
+- Added Ping-Pong Buffer Support sfter loader work
+
+**************30/10/2024************
+# Upgrade: v0.2
+- Added New functions for internal Register manupulation
+- Added Support for RDA/Coolsand 8809 loader test
+- Added loader files in project, they are from RDA/Coolsand, implemented from CM2
+- Fixed Memory leaks
+- Fixed binary len_size a bit
+************************************
+```
+
 # How to compile RUDRA
 
 ## Prerequsite
