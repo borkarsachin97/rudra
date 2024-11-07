@@ -28,6 +28,7 @@ sudo ./rudra -r 0x08000000 0x0400 0x00400000 firmware.bin
 ## Flashing/Burn the firmware to device
 ## [How Flashing Work ?](https://github.com/borkarsachin97/rudra/tree/master/loaders)
 ![Flashing](images/Flashing_1.png "Flashing")
+![Flashed Working Phones](images/flashed_working_phones.jpg "Flashed Working Phones")
 ```bash
 sudo ./rudra -f ./loaders/8809_00400000_usb.fp ./firmware.bin
 # -f							: Flashing command
@@ -76,6 +77,12 @@ sudo ./rudra -w 0x01c000a0 "000000008002c08100000000000000000000000000000000"
 
 # Changelog
 ```bash
+**************07/11/2024************
+- Added progress percentage calculation
+- Reduced flashing time
+- Added UART libs for future development
+- Added Images of working phones after flash
+
 **************01/11/2024************
 # Upgrade: v0.3
 - Added Firmware Flashing Support

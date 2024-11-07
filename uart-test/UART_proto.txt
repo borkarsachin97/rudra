@@ -1,0 +1,21 @@
+There is difrence between USB and UART Protocol in terms of RDA 8809
+We need to modify USB protocol so it would work with UART when Needed and usual USB as well
+
+To read word: 0x02, len: 0x0007
+Address in LE, Counter, current 0x83, CRC
+
+Write Word: 0x82, len 0x000A, 
+Address LE, WORD in LE, CRC
+
+Write INT Reg: 0x84, len 0x0007
+uint32 addres/Reg, uint8_t byte data framing/counter ?, crc
+
+Read INT Reg: 0x04, len 0x0007
+uint32, uint8_t
+
+Does it need byte stuffing ?
+5c ec
+Yes it is 
+ad0007ff028840a201855cec
+0x13 is crc, its stuffed by, 5c ec
+

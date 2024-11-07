@@ -32,7 +32,7 @@ test: $(TARGET)
 	sudo ./$(TARGET) -t ./8809_00400000_usb.fp
 
 run: $(TARGET)
-	sudo ./$(TARGET)
+	sudo ./$(TARGET) -r 0x08000000 0x0400 0x00400000 firmware.bin
 
 # Clean up object files and executable
 clean:

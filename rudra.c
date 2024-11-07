@@ -24,7 +24,9 @@
  
  
 #include "protocol.h"
+
 #include "usbComm.h"
+
 #include <unistd.h> // for sleep()
 #include <string.h> // for memcpy
 #include "progBuffer.h"
@@ -121,6 +123,11 @@ int read_firmware(USB* dev, libusbAPI api, packet* pkt, uint32_t addrs, uint16_t
 		free(binParts);
 		free(stream);
 		//pkt->snd->body.read_bulk_data.frame_id++;
+		// Calculate and print the progress percentage
+        float progress = ((float)(tmpAddr - addrs + rdprcyl) / flashsize) * 100.0f;
+        printf("Progress: %.2f%%\r", progress);
+        fflush(stdout);
+
 	}
 	free(recvStream);
 	fclose(file);
@@ -460,7 +467,7 @@ int eraseAndflash_firm(USB* dev, libusbAPI api, packet* pkt, const char *firmwar
 		stream = blStreamGen(&cmd);
 		sendBinData(dev, api, pkt, 0x81c05954, stream, cmd.bufferStrmSize);
 		writeWord(dev, api, pkt, 0x81c05954, 0x00000002);
-		sleep(5);
+		
 		readUnk(dev, api);
 		
 		size_t dtaSize = ( size - ftell(file) > MAX_CACHE) ? MAX_CACHE : size - ftell(file);
@@ -485,7 +492,11 @@ int eraseAndflash_firm(USB* dev, libusbAPI api, packet* pkt, const char *firmwar
 	sendBinData(dev, api, pkt, 0xa0000000, data, dtaSize);
 	sendBinData(dev, api, pkt, 0x81c05968, stream, cmd.bufferStrmSize);
 	writeWord(dev, api, pkt, 0x81c05968, 0x00000001);
-	sleep(5);
+	// Calculate and display progress
+    float progress = ((float)ftell(file) / size) * 100.0f;
+    printf("Progress: %.2f%%\r", progress);
+	sleep(2);
+	fflush(stdout);
 	readUnk(dev, api);
     free(stream);
     free(data);
